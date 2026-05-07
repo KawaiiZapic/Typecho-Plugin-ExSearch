@@ -34,7 +34,11 @@ class ExSearch_Plugin implements Typecho_Plugin_Interface
 
         // 创建表
         $dbname =$db->getPrefix() . 'exsearch';
-        $sql = "SHOW TABLES LIKE '%" . $dbname . "%'";
+        if (self::isSQLite($db)) {
+            $sql = "SELECT * FROM sqlite_master WHERE type='table' AND name='".$dbname."'";
+        } else {
+            $sql = "SHOW TABLES LIKE '%" . $dbname . "%'";
+        }
         if (count($db->fetchAll($sql)) == 0) {
             $sql = '
             DROP TABLE IF EXISTS `'.$dbname.'`;
@@ -43,8 +47,10 @@ class ExSearch_Plugin implements Typecho_Plugin_Interface
                 `key` char(32) not null,
                 `data` longtext,
                 primary key (`id`)
-            ) default charset=utf8';
- 
+            )';
+            if (!self::isSQLite($db)) {
+                $sql .= ' default charset=utf8';
+            }
             $sqls = explode(';', $sql);
             foreach ($sqls as $sql) {
                 $db->query($sql);
@@ -179,7 +185,11 @@ class ExSearch_Plugin implements Typecho_Plugin_Interface
     {
         $db = Typecho_Db::get();
         $dbname = $db->getPrefix() . 'exsearch';
-        $sql = "SHOW TABLES LIKE '%" . $dbname . "%'";
+        if (self::isSQLite($db)) {
+            $sql = "SELECT * FROM sqlite_master WHERE type='table' AND name='".$dbname."'";
+        } else {
+            $sql = "SHOW TABLES LIKE '%" . $dbname . "%'";
+        }
         if(count($db->fetchAll($sql)) != 0){
             $db->query($db->delete('table.exsearch')->where('id >= ?', 0));
         }
@@ -330,5 +340,9 @@ ExSearchConfig = {
 ?>
 <script src="<?php Helper::options()->pluginUrl('ExSearch/assets/ExSearch-6e577ac4e0.js'); ?>"></script>
 <?php
+    }
+
+    public static function isSQLite($db) {
+        return stripos($db->getAdapterName(), "sqlite") !== false;
     }
 }
